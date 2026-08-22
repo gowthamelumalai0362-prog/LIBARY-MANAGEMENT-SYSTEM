@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Library Management System (LMS)</title>
+    <meta name="description" content="Next-Gen Enterprise Library Management System featuring automated circulation, physical copy barcode tracking, FIFO waitlists, and fine management.">
+    <!-- Google Fonts & FontAwesome -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-book-bookmark"></i>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-title">AURA<strong>LMS</strong></span>
+                    <span class="brand-subtitle">Enterprise Edition</span>
+                </div>
+            </div>
+
+            <!-- Quick Role Switcher Banner -->
+            <div class="role-switcher-card">
+                <div class="role-label">Quick Switch Role:</div>
+                <div class="role-chips">
+                    <button class="role-btn active" id="quick-role-admin" onclick="switchDemoUser('admin')">
+                        <i class="fa-solid fa-shield-halved"></i> Admin
+                    </button>
+                    <button class="role-btn" id="quick-role-librarian" onclick="switchDemoUser('librarian')">
+                        <i class="fa-solid fa-id-badge"></i> Librarian
+                    </button>
+                    <button class="role-btn" id="quick-role-member" onclick="switchDemoUser('member')">
+                        <i class="fa-solid fa-graduation-cap"></i> Member
+                    </button>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="catalog" id="nav-catalog">
+                    <i class="fa-solid fa-compass"></i>
+                    <span>Catalog Explorer</span>
+                </button>
+                <button class="nav-item" data-tab="circulation" id="nav-circulation">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                    <span>Circulation Desk</span>
+                    <span class="badge" id="nav-active-loans-count">0</span>
+                </button>
+                <button class="nav-item" data-tab="my-portal" id="nav-my-portal">
+                    <i class="fa-solid fa-user"></i>
+                    <span>My Library Portal</span>
+                </button>
+                <button class="nav-item" data-tab="reservations" id="nav-reservations">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Waitlists & Holds</span>
+                </button>
+                <button class="nav-item" data-tab="fines" id="nav-fines">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span>Fines & Settlements</span>
+                    <span class="badge badge-warning" id="nav-fines-badge" style="display: none;">$0</span>
+                </button>
+                <button class="nav-item" data-tab="admin" id="nav-admin">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Admin Analytics</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="/swagger-ui.html" target="_blank" class="footer-link">
+                    <i class="fa-solid fa-code"></i> OpenAPI / Swagger
+                </a>
+                <a href="/h2-console" target="_blank" class="footer-link">
+                    <i class="fa-solid fa-database"></i> H2 Database Console
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top App Bar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-menu-btn" id="menuToggle" onclick="toggleSidebar()">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="page-title-group">
+                        <h1 id="page-title">Catalog Explorer</h1>
+                        <p id="page-subtitle">Discover, search, and manage books across all collections</p>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <!-- Policy Info Tag -->
+                    <div class="policy-tag" title="Library Policy: Max 5 books, 14 days loan, $0.50/day overdue fine">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span id="policy-summary-text">Max 5 Loans • 14 Days • $0.50/Day</span>
+                    </div>
+
+                    <!-- Theme Toggle -->
+                    <button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle Theme">
+                        <i class="fa-solid fa-sun" id="themeIcon"></i>
+                    </button>
+
+                    <!-- User Profile Dropdown / Login -->
+                    <div class="user-pill" id="userPill" onclick="toggleAuthModal()">
+                        <div class="user-avatar" id="userAvatar">EV</div>
+                        <div class="user-info">
+                            <span class="user-name" id="userName">Eleanor Vance</span>
+                            <span class="user-role-badge" id="userRoleBadge">ADMIN</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Notification Toast Container -->
+            <div id="toast-container" class="toast-container"></div>
+
+            <!-- Tab 1: Catalog Explorer -->
+            <section class="tab-content active" id="tab-catalog">
+                <!-- Search & Filter Controls -->
+                <div class="catalog-filter-card">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="catalog-search" placeholder="Search by title, author, ISBN, publisher..." oninput="handleSearchInput()">
+                        <button class="clear-btn" id="clearSearchBtn" onclick="clearCatalogSearch()"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="filter-controls">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="filter-available-only" onchange="loadCatalogBooks()">
+                            <span class="slider"></span>
+                            <span class="toggle-label">Available Copies Only</span>
+                        </label>
+                        <select id="filter-sort" onchange="loadCatalogBooks()" class="styled-select">
+                            <option value="id,desc">Newest First</option>
+                            <option value="title,asc">Title (A - Z)</option>
+                            <option value="author,asc">Author (A - Z)</option>
+                            <option value="publicationYear,desc">Publication Year</option>
+                        </select>
+                        <button class="primary-btn" id="btn-add-book" onclick="openAddBookModal()" style="display: inline-flex;">
+                            <i class="fa-solid fa-plus"></i> Add New Title
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Category Chips -->
+                <div class="category-scroll-container">
+                    <div class="category-chips" id="categoryChips">
+                        <button class="category-chip active" data-category="" onclick="selectCategory('')">All Collections</button>
+                        <button class="category-chip" data-category="COMPUTER_SCIENCE" onclick="selectCategory('COMPUTER_SCIENCE')">Computer Science</button>
+                        <button class="category-chip" data-category="ARTIFICIAL_INTELLIGENCE" onclick="selectCategory('ARTIFICIAL_INTELLIGENCE')">Artificial Intelligence</button>
+                        <button class="category-chip" data-category="SOFTWARE_ENGINEERING" onclick="selectCategory('SOFTWARE_ENGINEERING')">Software Eng</button>
+                        <button class="category-chip" data-category="DATA_SCIENCE" onclick="selectCategory('DATA_SCIENCE')">Data Science</button>
+                        <button class="category-chip" data-category="BUSINESS" onclick="selectCategory('BUSINESS')">Business</button>
+                        <button class="category-chip" data-category="LITERATURE" onclick="selectCategory('LITERATURE')">Literature</button>
+                        <button class="category-chip" data-category="HISTORY" onclick="selectCategory('HISTORY')">History</button>
+                    </div>
+                </div>
+
+                <!-- Books Grid -->
+                <div class="books-grid" id="booksGrid">
+                    <div class="loading-state"><div class="spinner"></div><p>Loading library catalog...</p></div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination-bar" id="catalogPagination"></div>
+            </section>
+
+            <!-- Tab 2: Circulation Desk -->
+            <section class="tab-content" id="tab-circulation">
+                <div class="circulation-header-grid">
+                    <!-- Check-out Card -->
+                    <div class="circ-card glass-panel">
+                        <div class="circ-card-title">
+                            <i class="fa-solid fa-arrow-right-from-bracket icon-issue"></i>
+                            <h3>Issue Book (Check-Out)</h3>
+                        </div>
+                        <p class="card-desc">Issue a physical book copy to a member using barcode.</p>
+                        <form id="issueForm" onsubmit="handleIssueBook(event)">
+                            <div class="form-group">
+                                <label for="issue-barcode">Copy Barcode <span class="required">*</span></label>
+                                <div class="input-with-icon">
+                                    <i class="fa-solid fa-barcode"></i>
+                                    <input type="text" id="issue-barcode" placeholder="e.g. BC-9780132350884-01" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="issue-user-select">Borrower Account <span class="required">*</span></label>
+                                <select id="issue-user-select" class="styled-select" required>
+                                    <option value="">Select Member...</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="primary-btn btn-block">
+                                <i class="fa-solid fa-check"></i> Complete Check-Out
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Check-in / Return Card -->
+                    <div class="circ-card glass-panel">
+                        <div class="circ-card-title">
+                            <i class="fa-solid fa-arrow-right-to-bracket icon-return"></i>
+                            <h3>Return Book (Check-In)</h3>
+                        </div>
+                        <p class="card-desc">Return copy, auto-calculate overdue fines, and trigger FIFO waitlist queue.</p>
+                        <form id="returnForm" onsubmit="handleReturnBook(event)">
+                            <div class="form-group">
+                                <label for="return-barcode">Copy Barcode <span class="required">*</span></label>
+                                <div class="input-with-icon">
+                                    <i class="fa-solid fa-barcode"></i>
+                                    <input type="text" id="return-barcode" placeholder="e.g. BC-9780132350884-01" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="return-condition">Condition / Notes</label>
+                                <input type="text" id="return-condition" placeholder="e.g. Excellent / Slight cover crease">
+                            </div>
+                            <button type="submit" class="secondary-btn btn-block">
+                                <i class="fa-solid fa-rotate-left"></i> Process Return
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Active Loans Table -->
+                <div class="data-table-container glass-panel mt-6">
+                    <div class="table-header-flex">
+                        <div>
+                            <h3>Active & Overdue Circulation Loans</h3>
+                            <p class="table-subtitle">Live view of checked-out inventory across all patrons</p>
+                        </div>
+                        <div class="table-actions">
+                            <button class="tab-chip active" id="tab-loans-active" onclick="filterCirculationLoans('active')">Active</button>
+                            <button class="tab-chip" id="tab-loans-overdue" onclick="filterCirculationLoans('overdue')">Overdue Only</button>
+                            <button class="icon-btn" onclick="loadCirculationLoans()" title="Refresh"><i class="fa-solid fa-arrows-rotate"></i></button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>Loan ID</th>
+                                    <th>Book Title</th>
+                                    <th>Barcode</th>
+                                    <th>Borrower</th>
+                                    <th>Borrow Date</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th>Fines</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="circulationLoansTableBody">
+                                <tr><td colspan="9" class="text-center py-6">Loading circulation loans...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 3: My Library Portal -->
+            <section class="tab-content" id="tab-my-portal">
+                <!-- User Summary Header -->
+                <div class="member-header-card glass-panel">
+                    <div class="member-profile-info">
+                        <div class="avatar-large" id="portalAvatar">SR</div>
+                        <div>
+                            <h2 id="portalUserName">Sophia Rodriguez</h2>
+                            <p id="portalUserEmail" class="text-muted">member@library.com</p>
+                            <div class="member-badges mt-2">
+                                <span class="badge badge-success" id="portalUserStatus">ACTIVE</span>
+                                <span class="badge badge-primary" id="portalUserRole">MEMBER</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="member-stats-row">
+                        <div class="member-stat-box">
+                            <span class="stat-number" id="portalActiveLoansCount">0</span>
+                            <span class="stat-label">Active Loans</span>
+                        </div>
+                        <div class="member-stat-box">
+                            <span class="stat-number" id="portalActiveHoldsCount">0</span>
+                            <span class="stat-label">Active Holds</span>
+                        </div>
+                        <div class="member-stat-box">
+                            <span class="stat-number text-warning" id="portalUnpaidFinesAmount">$0.00</span>
+                            <span class="stat-label">Outstanding Fines</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- My Active Loans Section -->
+                <div class="glass-panel mt-6">
+                    <div class="panel-header">
+                        <h3><i class="fa-solid fa-book-open"></i> My Currently Borrowed Books</h3>
+                        <span class="badge" id="myLoansBadge">0 items</span>
+                    </div>
+                    <div class="my-loans-grid" id="myLoansGrid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 4: Waitlists & Holds -->
+            <section class="tab-content" id="tab-reservations">
+                <div class="glass-panel">
+                    <div class="table-header-flex">
+                        <div>
+                            <h3><i class="fa-solid fa-clock-rotate-left"></i> Book Reservations & FIFO Waitlist Queue</h3>
+                            <p class="table-subtitle">Patrons waiting for checked-out books. Copies are held for 48h upon return.</p>
+                        </div>
+                        <button class="icon-btn" onclick="loadReservations()" title="Refresh"><i class="fa-solid fa-arrows-rotate"></i></button>
+                    </div>
+
+                    <div class="table-responsive mt-4">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>Hold ID</th>
+                                    <th>Book Title</th>
+                                    <th>Patron</th>
+                                    <th>Reservation Date</th>
+                                    <th>FIFO Queue Pos</th>
+                                    <th>Status</th>
+                                    <th>Held Copy Barcode</th>
+                                    <th>Hold Expiry</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reservationsTableBody">
+                                <tr><td colspan="9" class="text-center py-6">Loading reservations...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 5: Fines & Settlements -->
+            <section class="tab-content" id="tab-fines">
+                <div class="glass-panel">
+                    <div class="table-header-flex">
+                        <div>
+                            <h3><i class="fa-solid fa-receipt"></i> Overdue Fines & Payment History</h3>
+                            <p class="table-subtitle">Review overdue charges, settle balances online, or record waivers</p>
+                        </div>
+                        <div class="table-actions">
+                            <button class="primary-btn" onclick="loadFines()"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive mt-4">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>Fine ID</th>
+                                    <th>Patron</th>
+                                    <th>Book Title</th>
+                                    <th>Barcode</th>
+                                    <th>Amount</th>
+                                    <th>Reason / Overdue Days</th>
+                                    <th>Status</th>
+                                    <th>Payment Date / Method</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="finesTableBody">
+                                <tr><td colspan="9" class="text-center py-6">Loading fine records...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 6: Admin & Analytics Hub -->
+            <section class="tab-content" id="tab-admin">
+                <!-- Analytics Cards Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon-wrapper icon-blue"><i class="fa-solid fa-book"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Titles</span>
+                            <span class="stat-value" id="stat-total-books">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon-wrapper icon-purple"><i class="fa-solid fa-layer-group"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">Total Physical Copies</span>
+                            <span class="stat-value" id="stat-total-copies">0</span>
+                            <span class="stat-subtext" id="stat-available-copies">0 Available</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon-wrapper icon-emerald"><i class="fa-solid fa-arrows-spin"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">Active Loans</span>
+                            <span class="stat-value" id="stat-active-loans">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon-wrapper icon-rose"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">Overdue Loans</span>
+                            <span class="stat-value" id="stat-overdue-loans">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon-wrapper icon-amber"><i class="fa-solid fa-coins"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">Revenue Collected</span>
+                            <span class="stat-value" id="stat-revenue">$0.00</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-icon-wrapper icon-cyan"><i class="fa-solid fa-users"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label">Registered Members</span>
+                            <span class="stat-value" id="stat-total-members">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leaderboard & Policy Flex -->
+                <div class="admin-sections-grid mt-6">
+                    <!-- Top Borrowed Books Leaderboard -->
+                    <div class="glass-panel">
+                        <div class="panel-header">
+                            <h3><i class="fa-solid fa-fire text-rose"></i> Most Popular Titles (Top 5)</h3>
+                        </div>
+                        <div class="top-books-list" id="topBooksList">
+                            <div class="text-center py-6">Loading popularity stats...</div>
+                        </div>
+                    </div>
+
+                    <!-- Library Policies Configuration -->
+                    <div class="glass-panel">
+                        <div class="panel-header">
+                            <h3><i class="fa-solid fa-sliders text-indigo"></i> Library Circulation Policies</h3>
+                            <button class="icon-btn" onclick="triggerScheduledJobs()" title="Run overnight background jobs immediately">
+                                <i class="fa-solid fa-bolt"></i> Run Jobs
+                            </button>
+                        </div>
+                        <form id="policyForm" onsubmit="handleSavePolicies(event)" class="policy-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Max Borrow Limit (Books)</label>
+                                    <input type="number" id="policy-max-limit" min="1" max="20" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Loan Duration (Days)</label>
+                                    <input type="number" id="policy-loan-days" min="1" max="90" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Daily Overdue Fine ($)</label>
+                                    <input type="number" id="policy-fine-rate" step="0.05" min="0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Blocking Fine Threshold ($)</label>
+                                    <input type="number" id="policy-threshold" step="0.50" min="0" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Reservation Hold Window (Hours)</label>
+                                <input type="number" id="policy-hold-hours" min="1" max="168" required>
+                            </div>
+                            <button type="submit" class="primary-btn btn-block">
+                                <i class="fa-solid fa-floppy-disk"></i> Update Policies
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- User Management Table -->
+                <div class="glass-panel mt-6">
+                    <div class="panel-header">
+                        <h3><i class="fa-solid fa-users-gear"></i> User Directory & Access Management</h3>
+                    </div>
+                    <div class="table-responsive mt-4">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>User ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Active Loans</th>
+                                    <th>Unpaid Fines</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userManagementTableBody">
+                                <tr><td colspan="8" class="text-center py-6">Loading user directory...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+
+    <!-- Book Details & Barcode Copies Modal -->
+    <div class="modal-overlay" id="bookModal">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <h3 id="modalBookTitle">Book Details</h3>
+                <button class="close-btn" onclick="closeModal('bookModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" id="modalBookBody">
+                <!-- Injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Add / Edit Book Modal -->
+    <div class="modal-overlay" id="addBookModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Add New Title to Catalog</h3>
+                <button class="close-btn" onclick="closeModal('addBookModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="createBookForm" onsubmit="handleCreateBook(event)">
+                    <div class="form-group">
+                        <label>Book Title <span class="required">*</span></label>
+                        <input type="text" id="add-title" placeholder="e.g. Clean Architecture" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Author <span class="required">*</span></label>
+                            <input type="text" id="add-author" placeholder="e.g. Robert C. Martin" required>
+                        </div>
+                        <div class="form-group">
+                            <label>ISBN <span class="required">*</span></label>
+                            <input type="text" id="add-isbn" placeholder="e.g. 9780134494166" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Category <span class="required">*</span></label>
+                            <select id="add-category" class="styled-select" required>
+                                <option value="SOFTWARE_ENGINEERING">Software Engineering</option>
+                                <option value="COMPUTER_SCIENCE">Computer Science</option>
+                                <option value="ARTIFICIAL_INTELLIGENCE">Artificial Intelligence</option>
+                                <option value="DATA_SCIENCE">Data Science</option>
+                                <option value="BUSINESS">Business</option>
+                                <option value="LITERATURE">Literature</option>
+                                <option value="HISTORY">History</option>
+                                <option value="GENERAL">General</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Initial Physical Copies</label>
+                            <input type="number" id="add-copies" value="2" min="1" max="50" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Publisher</label>
+                            <input type="text" id="add-publisher" placeholder="e.g. Prentice Hall">
+                        </div>
+                        <div class="form-group">
+                            <label>Publication Year</label>
+                            <input type="number" id="add-year" value="2023" min="1800" max="2099">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Cover Image URL (Optional)</label>
+                        <input type="url" id="add-cover" placeholder="https://images.unsplash.com/...">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="add-description" rows="3" placeholder="Summary and synopsis of the book..."></textarea>
+                    </div>
+                    <button type="submit" class="primary-btn btn-block mt-4">
+                        <i class="fa-solid fa-plus"></i> Save and Generate Copies
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pay Fine Modal -->
+    <div class="modal-overlay" id="payFineModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Settle Library Fine</h3>
+                <button class="close-btn" onclick="closeModal('payFineModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p id="payFineDetailsText" class="mb-4">Settling fine for overdue loan.</p>
+                <form id="payFineForm" onsubmit="handlePayFineSubmit(event)">
+                    <input type="hidden" id="payFineId">
+                    <div class="form-group">
+                        <label>Select Payment Method</label>
+                        <select id="payFineMethod" class="styled-select" required>
+                            <option value="CAMPUS_CARD">University Campus Card</option>
+                            <option value="CREDIT_CARD">Credit / Debit Card</option>
+                            <option value="ONLINE_UPI">UPI / Digital Wallet</option>
+                            <option value="CASH_DESK">Cash at Circulation Desk</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes (Optional)</label>
+                        <input type="text" id="payFineNotes" placeholder="Transaction ref or receipt #">
+                    </div>
+                    <button type="submit" class="primary-btn btn-block">
+                        <i class="fa-solid fa-credit-card"></i> Confirm & Clear Fine
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Authentication & Login Modal -->
+    <div class="modal-overlay" id="authModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="authModalTitle">Sign In to LMS</h3>
+                <button class="close-btn" onclick="closeModal('authModal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="loginForm" onsubmit="handleManualLogin(event)">
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" id="login-email" placeholder="you@library.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="login-password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="primary-btn btn-block mt-4">
+                        <i class="fa-solid fa-right-to-bracket"></i> Sign In
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
