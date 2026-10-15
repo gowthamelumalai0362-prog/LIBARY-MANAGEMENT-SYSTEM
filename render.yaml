@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: auralms-backend
+    runtime: docker
+    plan: starter
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_HOST
+        fromDatabase:
+          name: auralms-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: auralms-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: auralms-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: auralms-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: auralms-db
+          property: password
+      - key: APP_JWT_SECRET
+        generateValue: true
+      - key: APP_SEED_DEMO_USERS
+        value: "false"
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: BOOTSTRAP_ADMIN_FIRST_NAME
+        sync: false
+      - key: BOOTSTRAP_ADMIN_LAST_NAME
+        sync: false
+
+databases:
+  - name: auralms-db
+    databaseName: auralms
+    user: auralms_user
+    plan: basic-256mb
+    region: singapore
