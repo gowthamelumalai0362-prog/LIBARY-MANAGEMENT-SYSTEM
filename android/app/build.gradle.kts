@@ -4,7 +4,7 @@ plugins {
 
 val backendUrl = (project.findProperty("backendUrl") as String?)
     ?: System.getenv("AURALMS_BACKEND_URL")
-    ?: "https://YOUR-AURALMS-SERVICE.onrender.com"
+    ?: "https://auralms-backend.onrender.com"
 
 android {
     namespace = "com.library.auralms"
